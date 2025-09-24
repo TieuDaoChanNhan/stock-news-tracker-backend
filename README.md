@@ -1,6 +1,6 @@
-# Hướng dẫn cài đặt và chạy dự án
+# Installation and Running Instructions
 
-## 1. Cài đặt dependencies
+## 1. Install dependencies
 
 ```
 
@@ -17,10 +17,12 @@ python -m uvicorn main:app --reload --port 8000
 
 ```
 
-## 5. Chạy project
+## 5. Run project
 
 ```
 
 python app/scheduler_script.py
 
 ```
+
+**Demo Link**: https://soft-cassata-869f95.netlify.app/
