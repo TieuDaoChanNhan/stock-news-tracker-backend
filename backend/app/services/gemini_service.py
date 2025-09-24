@@ -1,54 +1,41 @@
 import os
-from mistralai import Mistral
+import google.generativeai as genai
 from typing import Optional, Dict, Any
 from dotenv import load_dotenv
 import json
 import re
 
-
 load_dotenv()
-MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+if GOOGLE_API_KEY:
+    genai.configure(api_key=GOOGLE_API_KEY)
+else:
+    print("CẢNH BÁO: GOOGLE_API_KEY không được tìm thấy trong file .env")
 
-def get_mistral_client() -> Optional[Mistral]:
+def call_gemini(prompt: str, model_name: str = "gemini-1.5-flash") -> Optional[str]:
     """
-    Tạo và trả về Mistral client với API key.
+    Gửi một prompt đến Gemini API và nhận về text response.
     """
-    if not MISTRAL_API_KEY:
-        print("CẢNH BÁO: MISTRAL_API_KEY không được tìm thấy trong file .env")
+    if not GOOGLE_API_KEY:
+        print("Lỗi: Không thể gọi Gemini API vì thiếu API Key.")
         return None
-    return Mistral(api_key=MISTRAL_API_KEY)
-
-
-def call_mistral(prompt: str, model_name: str = "mistral-large-latest") -> Optional[str]:
-    """
-    Gửi một prompt đến Mistral API và nhận về text response.
-    """
-    client = get_mistral_client()
-    if not client:
-        print("Lỗi: Không thể gọi Mistral API vì thiếu API Key.")
-        return None
-        
     try:
-        with client:
-            response = client.chat.complete(
-                model=model_name,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ]
-            )
-            return response.choices[0].message.content
+        model = genai.GenerativeModel(model_name)
+        response = model.generate_content(prompt)
+        return response.text
     except Exception as e:
-        print(f"Lỗi khi gọi Mistral API: {e}")
+        print(f"Lỗi khi gọi Gemini API: {e}")
         return None
-
 
 def extract_json_from_markdown(text: str) -> str:
     """
     Trích xuất JSON từ markdown code block hoặc text thuần túy.
+    Xử lý các trường hợp:
+    - ``````
+    - ``````  
+    - {...} (JSON thuần túy)
     """
+    # Loại bỏ whitespace đầu cuối
     text = text.strip()
     
     # Pattern 1: ``````
@@ -69,12 +56,12 @@ def extract_json_from_markdown(text: str) -> str:
     if match3:
         return match3.group(0).strip()
     
+    # Fallback: trả về text gốc
     return text
 
-
-def summarize_article_with_mistral(title: str, content: str) -> Optional[str]:
+def summarize_article_with_gemini(title: str, content: str) -> Optional[str]:
     """
-    Tóm tắt một bài báo bằng cách sử dụng Mistral API.
+    Tóm tắt một bài báo bằng cách sử dụng Gemini API.
     """
     if not content or len(content.strip()) < 100:
         return content
@@ -96,13 +83,12 @@ def summarize_article_with_mistral(title: str, content: str) -> Optional[str]:
 
     **Bản tóm tắt của bạn:**
     """
-    summary = call_mistral(prompt)
+    summary = call_gemini(prompt)
     return summary
 
-
-def analyze_article_with_mistral(title: str, content: str) -> Optional[Dict[str, Any]]:
+def analyze_article_with_gemini(title: str, content: str) -> Optional[Dict[str, Any]]:
     """
-    Phân tích một bài báo toàn diện bằng Mistral API, bao gồm phân loại,
+    Phân tích một bài báo toàn diện bằng Gemini API, bao gồm phân loại,
     đánh giá sentiment, tác động và trích xuất thông tin.
     """
     if not content or len(content.strip()) < 50:
@@ -138,7 +124,7 @@ def analyze_article_with_mistral(title: str, content: str) -> Optional[Dict[str,
     **JSON object kết quả phân tích của bạn:**
     """
 
-    analysis_str = call_mistral(prompt)
+    analysis_str = call_gemini(prompt)
     if not analysis_str:
         return None
 
@@ -148,14 +134,12 @@ def analyze_article_with_mistral(title: str, content: str) -> Optional[Dict[str,
         analysis_json = json.loads(clean_json_str)
         return analysis_json
     except json.JSONDecodeError as e:
-        print(f"Lỗi khi parse JSON từ Mistral: {e}\nResponse gốc: {analysis_str}")
+        print(f"Lỗi khi parse JSON từ Gemini: {e}\nResponse gốc: {analysis_str}")
         return None
-
 
 # ===== CÁC MODULE PHÂN TÍCH CHUYÊN BIỆT =====
 
-
-def analyze_geopolitics_with_mistral(title: str, content: str) -> Optional[Dict[str, Any]]:
+def analyze_geopolitics_with_gemini(title: str, content: str) -> Optional[Dict[str, Any]]:
     """Module phân tích địa chính trị"""
     prompt = f"""
     Bạn là chuyên gia phân tích địa chính trị. Hãy đọc bài báo sau và trả về kết quả dưới dạng JSON với các trường:
@@ -168,7 +152,7 @@ def analyze_geopolitics_with_mistral(title: str, content: str) -> Optional[Dict[
 
     Chỉ trả về JSON object thuần túy:
     """
-    result = call_mistral(prompt)
+    result = call_gemini(prompt)
     if not result:
         return None
     try:
@@ -178,8 +162,7 @@ def analyze_geopolitics_with_mistral(title: str, content: str) -> Optional[Dict[
         print(f"Lỗi parse JSON Geopolitics: {e}\n{result}")
         return None
 
-
-def analyze_policy_with_mistral(title: str, content: str) -> Optional[Dict[str, Any]]:
+def analyze_policy_with_gemini(title: str, content: str) -> Optional[Dict[str, Any]]:
     """Module phân tích chính sách"""
     prompt = f"""
     Bạn là chuyên gia phân tích chính sách kinh tế. Hãy đọc bài báo sau và trả về JSON với:
@@ -193,7 +176,7 @@ def analyze_policy_with_mistral(title: str, content: str) -> Optional[Dict[str, 
 
     Chỉ trả về JSON object thuần túy:
     """
-    result = call_mistral(prompt)
+    result = call_gemini(prompt)
     if not result:
         return None
     try:
@@ -203,8 +186,7 @@ def analyze_policy_with_mistral(title: str, content: str) -> Optional[Dict[str, 
         print(f"Lỗi parse JSON Policy: {e}\n{result}")
         return None
 
-
-def analyze_gold_with_mistral(title: str, content: str) -> Optional[Dict[str, Any]]:
+def analyze_gold_with_gemini(title: str, content: str) -> Optional[Dict[str, Any]]:
     """Module phân tích giá vàng"""
     prompt = f"""
     Bạn là chuyên gia phân tích thị trường vàng. Đọc bài báo sau và trả về JSON với:
@@ -217,7 +199,7 @@ def analyze_gold_with_mistral(title: str, content: str) -> Optional[Dict[str, An
 
     Chỉ trả về JSON object thuần túy:
     """
-    result = call_mistral(prompt)
+    result = call_gemini(prompt)
     if not result:
         return None
     try:
@@ -227,8 +209,7 @@ def analyze_gold_with_mistral(title: str, content: str) -> Optional[Dict[str, An
         print(f"Lỗi parse JSON Gold: {e}\n{result}")
         return None
 
-
-def analyze_usd_index_with_mistral(title: str, content: str) -> Optional[Dict[str, Any]]:
+def analyze_usd_index_with_gemini(title: str, content: str) -> Optional[Dict[str, Any]]:
     """Module phân tích giá Dollar Index"""
     prompt = f"""
     Bạn là chuyên gia phân tích chỉ số Dollar Index. Đọc bài báo sau và trả về JSON với:
@@ -241,7 +222,7 @@ def analyze_usd_index_with_mistral(title: str, content: str) -> Optional[Dict[st
 
     Chỉ trả về JSON object thuần túy:
     """
-    result = call_mistral(prompt)
+    result = call_gemini(prompt)
     if not result:
         return None
     try:
@@ -251,17 +232,16 @@ def analyze_usd_index_with_mistral(title: str, content: str) -> Optional[Dict[st
         print(f"Lỗi parse JSON USD Index: {e}\n{result}")
         return None
 
-
-def analyze_article_all_with_mistral(title: str, content: str) -> Dict[str, Any]:
+def analyze_article_all_with_gemini(title: str, content: str) -> Dict[str, Any]:
     """
     Module tổng hợp - gọi tất cả các module phân tích chuyên biệt
     """
     result = {
-        "summary": summarize_article_with_mistral(title, content),
-        "general_analysis": analyze_article_with_mistral(title, content),
-        "geopolitics": analyze_geopolitics_with_mistral(title, content),
-        "policy": analyze_policy_with_mistral(title, content),
-        "gold": analyze_gold_with_mistral(title, content),
-        "usd_index": analyze_usd_index_with_mistral(title, content)
+        "summary": summarize_article_with_gemini(title, content),
+        "general_analysis": analyze_article_with_gemini(title, content),
+        "geopolitics": analyze_geopolitics_with_gemini(title, content),
+        "policy": analyze_policy_with_gemini(title, content),
+        "gold": analyze_gold_with_gemini(title, content),
+        "usd_index": analyze_usd_index_with_gemini(title, content)
     }
     return result
