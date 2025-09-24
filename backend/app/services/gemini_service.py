@@ -8,31 +8,38 @@ import re
 
 load_dotenv()
 MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
-if MISTRAL_API_KEY:
-    client = Mistral(api_key=MISTRAL_API_KEY)
-else:
-    client = None
-    print("CẢNH BÁO: MISTRAL_API_KEY không được tìm thấy trong file .env")
+
+def get_mistral_client() -> Optional[Mistral]:
+    """
+    Tạo và trả về Mistral client với API key.
+    """
+    if not MISTRAL_API_KEY:
+        print("CẢNH BÁO: MISTRAL_API_KEY không được tìm thấy trong file .env")
+        return None
+    return Mistral(api_key=MISTRAL_API_KEY)
 
 
 def call_mistral(prompt: str, model_name: str = "mistral-large-latest") -> Optional[str]:
     """
     Gửi một prompt đến Mistral API và nhận về text response.
     """
+    client = get_mistral_client()
     if not client:
         print("Lỗi: Không thể gọi Mistral API vì thiếu API Key.")
         return None
+        
     try:
-        response = client.chat.complete(
-            model=model_name,
-            messages=[
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ]
-        )
-        return response.choices[0].message.content
+        with client:
+            response = client.chat.complete(
+                model=model_name,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ]
+            )
+            return response.choices[0].message.content
     except Exception as e:
         print(f"Lỗi khi gọi Mistral API: {e}")
         return None
@@ -41,12 +48,7 @@ def call_mistral(prompt: str, model_name: str = "mistral-large-latest") -> Optio
 def extract_json_from_markdown(text: str) -> str:
     """
     Trích xuất JSON từ markdown code block hoặc text thuần túy.
-    Xử lý các trường hợp:
-    - ``````
-    - ``````  
-    - {...} (JSON thuần túy)
     """
-    # Loại bỏ whitespace đầu cuối
     text = text.strip()
     
     # Pattern 1: ``````
@@ -67,7 +69,6 @@ def extract_json_from_markdown(text: str) -> str:
     if match3:
         return match3.group(0).strip()
     
-    # Fallback: trả về text gốc
     return text
 
 
