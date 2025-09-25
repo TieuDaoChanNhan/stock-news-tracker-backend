@@ -24,3 +24,5 @@ python -m uvicorn main:app --reload --port 8000
 python app/scheduler_script.py
 
 ```
+
+Demo: https://soft-cassata-869f95.netlify.app

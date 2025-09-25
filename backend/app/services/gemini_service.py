@@ -12,7 +12,7 @@ if GOOGLE_API_KEY:
 else:
     print("CẢNH BÁO: GOOGLE_API_KEY không được tìm thấy trong file .env")
 
-def call_gemini(prompt: str, model_name: str = "gemini-1.5-flash") -> Optional[str]:
+def call_gemini(prompt: str, model_name: str = "gemini-2.5-flash") -> Optional[str]:
     """
     Gửi một prompt đến Gemini API và nhận về text response.
     """
